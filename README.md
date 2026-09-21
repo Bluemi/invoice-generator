@@ -1,4 +1,4 @@
-# project_name
+# invoice-generator
 
 Template for python projects.
 
