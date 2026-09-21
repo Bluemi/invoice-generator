@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "invoice-generator"
+name = "invoice_generator"
 version = "0.1.0"
 description = "todo"
 authors = [
@@ -14,10 +14,11 @@ license-files = ["LICENSE"]
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "simple-term-menu>=1.6.6",
 ]
 
 [project.scripts]
-project_cli = "invoice_generator.cli.main:main"
+invoice-generator = "invoice_generator.cli.main:main"
 
 [project.optional-dependencies]
 dev = ["pytest", "build", "twine"]
