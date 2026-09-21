@@ -1,6 +1,11 @@
+import shutil
 from pathlib import Path
 import subprocess
 import tempfile
+
+from invoice_generator.utils import get_files
+
+TEX_NAME = 'tmp'
 
 
 def create_pdf(latex_str: str, output_path: Path) -> None:
@@ -8,11 +13,13 @@ def create_pdf(latex_str: str, output_path: Path) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_input_file = Path(tmpdir) / f'{TEX_NAME}.tex'
+        with open(tmp_input_file, mode='w') as f:
+            f.write(latex_str)
         # '-' instructs tectonic to read LaTeX source from stdin.
         # The output is always named 'texput.pdf' in the specified --outdir.
         proc = subprocess.run(
-            ["tectonic", "-o", tmpdir, "-"],
-            input=latex_str,
+            ["tectonic", "-o", tmpdir, str(tmp_input_file)],
             text=True,
             capture_output=True,
         )
@@ -20,4 +27,5 @@ def create_pdf(latex_str: str, output_path: Path) -> None:
         if proc.returncode != 0:
             raise RuntimeError(f"Tectonic compilation failed:\n{proc.stderr}")
 
-        (Path(tmpdir) / "texput.pdf").replace(output_path)
+        gen_path = (Path(tmpdir) / f'{TEX_NAME}.pdf')
+        shutil.move(gen_path, output_path)
