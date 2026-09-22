@@ -1,4 +1,5 @@
 import datetime
+import string
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional, List
@@ -163,6 +164,7 @@ def insert_services(invoice_data: InvoiceData):
         service.index = service_index
         service_index += 1
         service.count = ask_count()
+        fill_description(service)
         services.append(service)
     invoice_data.services = services
 
@@ -176,6 +178,26 @@ def ask_count() -> int:
         except ValueError:
             continue
     return -1
+
+
+def fill_description(service: ServiceData):
+    formatter = string.Formatter()
+    values = []
+    index = 1
+    explained = False
+    try:
+        for _, field_name, _, _ in formatter.parse(service.description):
+            if field_name is not None:
+                if not explained:
+                    print('Description contains placeholders:')
+                    print(service.description)
+                    explained = True
+                values.append(input(f'{index}> '))
+    except ValueError:
+        # Handles malformed braces like "Hello {"
+        print(f'Description is malformed:\n{service.description}')
+        return
+    service.description = service.description.format(*values)
 
 
 def ask_next_service() -> ServiceData | None:
