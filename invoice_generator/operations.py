@@ -7,7 +7,7 @@ from typing import Optional, List
 import yaml
 
 from invoice_generator.utils import get_files, ask_user, format_path, format_date, format_date_opt, parse_date, \
-    list_dates, format_price, Cancelled, get_choice_index, parse_price
+    list_dates, format_price, Cancelled, get_choice_index, parse_price, is_valid_filename
 
 LATEX_LINE_FORMAT = '''{index}. & {description} & {count} & {price} & {price_total} \\\\
 \\midrule[\\heavyrulewidth]
@@ -29,6 +29,7 @@ class ServiceData:
 
 @dataclass
 class InvoiceData:
+    name: str
     logo_path: Optional[Path] = None
     firma: str = ''
     website: str = ''
@@ -88,6 +89,11 @@ class InvoiceData:
     def price_total(self) -> int:
         return sum(s.price_cents * s.count for s in self.services)
 
+    def get_output_path(self, extension: str) -> Path:
+        if self.invoice_date is None:
+            raise ValueError('invoice_date not provided')
+        return Path('output') / f'{self.invoice_date.strftime("%Y_%m_%d")}_{self.name}.{extension}'
+
 
 def insert_x(latex_body: str, value: str | None, latex_key: str) -> str:
     if value:
@@ -95,6 +101,15 @@ def insert_x(latex_body: str, value: str | None, latex_key: str) -> str:
     elif latex_key in latex_body:
         raise ValueError(f'key {latex_key} not provided')
     return latex_body
+
+
+def ask_name() -> str:
+    while True:
+        print('Invoice name:')
+        name = input('> ')
+        if is_valid_filename(name):
+            return name
+        print('Invalid name. Should not contain spaces or special characters.')
 
 
 def choose_template() -> Path:

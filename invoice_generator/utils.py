@@ -117,3 +117,52 @@ def parse_price(price_str: str) -> int:
 class Cancelled(Exception):
     def __init__(self, message: str = 'Cancelled'):
         super().__init__(message)
+
+
+import re
+
+# Windows reserved device names (case-insensitive)
+RESERVED_NAMES = {
+    "CON", "PRN", "AUX", "NUL",
+    *(f"COM{i}" for i in range(1, 10)),
+    *(f"LPT{i}" for i in range(1, 10)),
+}
+
+# Allowed: ASCII letters, digits, '.', '_', '-'
+# Constraint: Cannot start with '-' (avoids CLI flag misinterpretation)
+# Length: 1 to 255 bytes
+SAFE_FILENAME_REGEX = re.compile(r"^[A-Za-z0-9_.][A-Za-z0-9_.-]*$")
+
+
+def is_valid_filename(filename: str) -> bool:
+    """
+    Checks if a string is a safe, portable, cross-platform filename.
+    Disallows spaces, non-ASCII characters, shell metacharacters,
+    leading dashes, trailing dots/spaces, relative path markers, and
+    reserved device names. Max length is 255 bytes.
+    """
+    if not isinstance(filename, str) or not filename:
+        return False
+
+    # Check byte length (most filesystems enforce a 255-byte limit)
+    if len(filename.encode("utf-8")) > 255:
+        return False
+
+    # Reject relative directory references
+    if filename in {".", ".."}:
+        return False
+
+    # Disallow filenames ending in a dot (Windows restriction/convention)
+    if filename.endswith("."):
+        return False
+
+    # Enforce safe character set and leading character rules
+    if not SAFE_FILENAME_REGEX.match(filename):
+        return False
+
+    # Check Windows reserved base names (e.g., 'aux.txt', 'nul', 'com1.log')
+    base_name = filename.split(".")[0].upper()
+    if base_name in RESERVED_NAMES:
+        return False
+
+    return True
