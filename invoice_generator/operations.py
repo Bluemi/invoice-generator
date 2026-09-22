@@ -67,6 +67,8 @@ class InvoiceData:
         latex_body = insert_x(latex_body, format_date_opt(self.invoice_date), '__INVOICE_DATE__')
         latex_body = insert_x(latex_body, self.format_service_time_period(), '__SERVICE_TIME_PERIOD__')
         latex_body = insert_x(latex_body, self.format_services(), '__SERVICES__')
+        latex_body = insert_x(latex_body, format_price(self.price_total()), '__SUM_NETTO__')
+        latex_body = insert_x(latex_body, format_price(self.price_total()), '__SUM_TOTAL__')
         return latex_body
 
     def format_service_time_period(self) -> Optional[str]:
@@ -81,6 +83,9 @@ class InvoiceData:
     def format_services(self) -> str:
         lines = [s.to_latex_line() for s in self.services]
         return '\n'.join(lines)
+
+    def price_total(self) -> int:
+        return sum(s.price_cents * s.count for s in self.services)
 
 
 def insert_x(latex_body: str, value: str | None, latex_key: str) -> str:
