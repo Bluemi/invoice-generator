@@ -3,7 +3,7 @@ from pathlib import Path
 
 from invoice_generator.latex import create_pdf
 from invoice_generator.operations import choose_template, insert_logo_path, InvoiceData, insert_recipient_data, \
-    insert_personal_data
+    insert_personal_data, insert_invoice_data
 
 
 def main():
@@ -17,6 +17,7 @@ def main():
     insert_logo_path(invoice_data)
     insert_personal_data(invoice_data)
     insert_recipient_data(invoice_data)
+    insert_invoice_data(invoice_data)
 
     latex_body = invoice_data.apply(latex_body)
 
