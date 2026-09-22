@@ -2,6 +2,7 @@ import datetime
 # noinspection unused-imports
 import readline
 from pathlib import Path
+import re
 from typing import List, Tuple, TypeVar, Callable, Optional
 
 from simple_term_menu import TerminalMenu
@@ -82,6 +83,35 @@ def format_date_opt(date: Optional[datetime.date]) -> Optional[str]:
 
 def format_path(path: Path) -> str:
     return path.stem
+
+
+def format_price(cents: int) -> str:
+    sign = "-" if cents < 0 else ""
+    cents = abs(cents)
+
+    euros, remainder = divmod(cents, 100)
+    # Format whole euros with dots as thousand separators
+    formatted_euros = f"{euros:_}".replace("_", ".")
+
+    return f"{sign}{formatted_euros},{remainder:02d}~€"
+
+
+# Matches strings formatted as [optional -][digits with optional . separators],[exactly 2 digits]€
+# Examples: "1.000,00€", "25,50€", "0,99€", "-1.234.567,89€"
+PRICE_PATTERN = re.compile(
+    r"^(?P<sign>-)?(?P<euros>(?:0|[1-9]\d{0,2}(?:\.\d{3})*)),(?P<cents>\d{2})$"
+)
+
+def parse_price(price_str: str) -> int:
+    match = PRICE_PATTERN.fullmatch(price_str.strip())
+    if not match:
+        raise ValueError(f"Invalid price format: {price_str!r}")
+
+    sign = -1 if match.group("sign") else 1
+    euros = int(match.group("euros").replace(".", ""))
+    cents = int(match.group("cents"))
+
+    return sign * (euros * 100 + cents)
 
 
 class Cancelled(Exception):

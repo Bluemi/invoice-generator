@@ -1,12 +1,29 @@
 import datetime
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 import yaml
 
 from invoice_generator.utils import get_files, ask_user, format_path, format_date, format_date_opt, parse_date, \
-    list_dates
+    list_dates, format_price, Cancelled, get_choice_index, parse_price
+
+LATEX_LINE_FORMAT = '''{index}. & {description} & {count} & {price} & {price_total} \\\\
+\\midrule[\\heavyrulewidth]
+'''
+
+@dataclass
+class ServiceData:
+    index: int
+    description: str
+    count: int
+    price_cents: int
+
+    def to_latex_line(self) -> str:
+        return LATEX_LINE_FORMAT.format(
+            index=self.index+1, description=self.description, count=self.count, price=format_price(self.price_cents),
+            price_total=format_price(self.price_cents * self.count)
+        )
 
 
 @dataclass
@@ -29,6 +46,7 @@ class InvoiceData:
     invoice_date: Optional[datetime.date] = None
     service_start_date: Optional[datetime.date] = None
     service_end_date: Optional[datetime.date] = None
+    services: List[ServiceData] = field(default_factory=list)
 
     def apply(self, latex_body: str) -> str:
         latex_body = insert_x(latex_body, str(self.logo_path.absolute()) if self.logo_path else None, '__LOGO_PATH__')
@@ -48,6 +66,7 @@ class InvoiceData:
         latex_body = insert_x(latex_body, self.invoice_nr, '__INVOICE_NR__')
         latex_body = insert_x(latex_body, format_date_opt(self.invoice_date), '__INVOICE_DATE__')
         latex_body = insert_x(latex_body, self.format_service_time_period(), '__SERVICE_TIME_PERIOD__')
+        latex_body = insert_x(latex_body, self.format_services(), '__SERVICES__')
         return latex_body
 
     def format_service_time_period(self) -> Optional[str]:
@@ -58,6 +77,10 @@ class InvoiceData:
         if self.service_end_date:
             return f'Leistungszeitraum & {format_date(self.service_start_date)} -- \\ {format_date(self.service_end_date)}'
         raise Exception('This should never happen')
+
+    def format_services(self) -> str:
+        lines = [s.to_latex_line() for s in self.services]
+        return '\n'.join(lines)
 
 
 def insert_x(latex_body: str, value: str | None, latex_key: str) -> str:
@@ -123,3 +146,83 @@ def insert_invoice_data(invoice_data: InvoiceData):
         'Enter service end date', list_dates(invoice_data.service_start_date or today, 0, 2),
         include_cancel=True, str_convert=format_date, other_convert=parse_date
     )
+
+
+def insert_services(invoice_data: InvoiceData):
+    services = []
+    service_index = 0
+    while True:
+        service = ask_next_service()
+        if service is None:
+            break
+        service.index = service_index
+        service_index += 1
+        service.count = ask_count()
+        services.append(service)
+    invoice_data.services = services
+
+
+def ask_count() -> int:
+    while True:
+        try:
+            print('Count:')
+            count = input('> ')
+            return int(count)
+        except ValueError:
+            continue
+    return -1
+
+
+def ask_next_service() -> ServiceData | None:
+    service_paths = get_files(Path('data/services'))
+    options = ['[n] new'] + [str(path) for path in service_paths]
+    try:
+        choice_index = get_choice_index(
+            'What service to add?', options, include_cancel=True, single_auto=False
+        )
+    except Cancelled:
+        return None
+    if choice_index == 0:
+        return create_new_service()
+    service_path = service_paths[choice_index - 1]
+    with open(service_path, 'r', encoding='utf-8') as f:
+        data = yaml.safe_load(f)
+    return ServiceData(
+        index=-1,
+        description=data['description'],
+        price_cents=data['price_cents'],
+        count=-1
+    )
+
+
+def create_new_service() -> ServiceData:
+    while True:
+        print('Service name:')
+        name = input('> ')
+        if name.isidentifier():
+            output_path = Path('data/services') / f'{name}.yaml'
+            if output_path.exists():
+                print(f'Service "{name}" already exists, try again!')
+            else:
+                break
+        else:
+            print('Invalid service name, try again!')
+
+    print('Service description:')
+    description = input('> ')
+    print('Type the price:')
+    while True:
+        try:
+            price_cents = parse_price(input('> '))
+            break
+        except ValueError:
+            print('Invalid price, try again:')
+    data = ServiceData(-1, description=description, count=-1, price_cents=price_cents)
+
+    # save data
+    with open(output_path, 'w', encoding='utf-8') as f:
+        yaml.safe_dump({
+            'description': description,
+            'price_cents': price_cents
+        }, f)
+    return data
