@@ -3,8 +3,6 @@ from pathlib import Path
 import subprocess
 import tempfile
 
-from invoice_generator.utils import get_files
-
 TEX_NAME = 'tmp'
 
 

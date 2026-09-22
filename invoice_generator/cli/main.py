@@ -1,20 +1,28 @@
 #!/usr/bin/env python3
 from pathlib import Path
 
-from invoice_generator.utils import get_files, get_choice
 from invoice_generator.latex import create_pdf
+from invoice_generator.operations import choose_template, insert_logo_path, InvoiceData
 
 
 def main():
-    latex_files = get_files(Path('latex'))
-    choice = get_choice('Select a template', [str(f) for f in latex_files], include_cancel=True)
-    template = latex_files[choice]
+    template = choose_template()
 
     with open(template) as f:
-        text = f.read()
-        output_path = Path('output/invoice_01.pdf')
-        output_path.parent.mkdir(exist_ok=True)
-        create_pdf(text, output_path)
+        latex_body = f.read()
+
+    invoice_data = InvoiceData()
+
+    # logo
+    insert_logo_path(invoice_data)
+
+    latex_body = invoice_data.apply(latex_body)
+
+    output_path = Path('output/invoice_01.pdf')
+    output_path.parent.mkdir(exist_ok=True)
+    create_pdf(latex_body, output_path)
+
+
 
 
 if __name__ == '__main__':
