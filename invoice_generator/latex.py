@@ -2,6 +2,7 @@ import shutil
 from pathlib import Path
 import subprocess
 import tempfile
+import re
 
 TEX_NAME = 'tmp'
 
@@ -27,3 +28,35 @@ def create_pdf(latex_str: str, output_path: Path) -> None:
 
         gen_path = (Path(tmpdir) / f'{TEX_NAME}.pdf')
         shutil.move(gen_path, output_path)
+
+
+def latex_escape(text: str) -> str:
+    """
+    Escapes special characters and German umlauts in a string for safe use in LaTeX.
+    """
+    # Character mapping for LaTeX equivalents
+    latex_map = {
+        "\\": r"\textbackslash{}",
+        "&": r"\&",
+        "%": r"\%",
+        "$": r"\$",
+        "#": r"\#",
+        "_": r"\_",
+        "{": r"\{",
+        "}": r"\}",
+        "~": r"\textasciitilde{}",
+        "^": r"\textasciicircum{}",
+        '"': r"\textquotedbl{}",
+        # German Umlauts and Eszett
+        "ä": r'\"a',
+        "ö": r'\"o',
+        "ü": r'\"u',
+        "Ä": r'\"A',
+        "Ö": r'\"O',
+        "Ü": r'\"U',
+        "ß": r"\ss{}",
+    }
+
+    # Match any character present in the dictionary keys
+    pattern = re.compile("|".join(re.escape(k) for k in latex_map.keys()))
+    return pattern.sub(lambda match: latex_map[match.group(0)], text)

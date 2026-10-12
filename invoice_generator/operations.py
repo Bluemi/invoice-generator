@@ -6,6 +6,7 @@ from typing import Optional, List
 
 import yaml
 
+from invoice_generator.latex import latex_escape
 from invoice_generator.utils import get_files, ask_user, format_path, format_date, format_date_opt, parse_date, \
     list_dates, format_price, Cancelled, get_choice_index, parse_price, is_valid_filename
 
@@ -22,8 +23,8 @@ class ServiceData:
 
     def to_latex_line(self) -> str:
         return LATEX_LINE_FORMAT.format(
-            index=self.index+1, description=self.description, count=self.count, price=format_price(self.price_cents),
-            price_total=format_price(self.price_cents * self.count)
+            index=self.index+1, description=latex_escape(self.description), count=self.count,
+            price=format_price(self.price_cents), price_total=format_price(self.price_cents * self.count)
         )
 
 
@@ -207,7 +208,8 @@ def fill_description(service: ServiceData):
                     print('Description contains placeholders:')
                     print(service.description)
                     explained = True
-                values.append(input(f'{index}> '))
+                values.append(latex_escape(input(f'{index}> ')))
+                index += 1
     except ValueError:
         # Handles malformed braces like "Hello {"
         print(f'Description is malformed:\n{service.description}')
@@ -253,6 +255,7 @@ def create_new_service() -> ServiceData:
     print('Service description:')
     description = input('> ')
     print('Type the price:')
+    print('Examples: 1.000,00€   25,50€   0,99€   1.234.567,89€')
     while True:
         try:
             price_cents = parse_price(input('> '))
