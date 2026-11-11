@@ -20,9 +20,11 @@ class ServiceData:
     index: int
     description: str
     count: int
-    price_cents: int
+    price_cents: int | None
 
     def to_latex_line(self) -> str:
+        if self.price_cents is None:
+            raise ValueError('Cannot convert to latex line, if price is None')
         return LATEX_LINE_FORMAT.format(
             index=self.index+1, description=latex_escape(self.description), count=self.count,
             price=format_price(self.price_cents), price_total=format_price(self.price_cents * self.count)
@@ -89,7 +91,12 @@ class InvoiceData:
         return '\n'.join(lines)
 
     def price_total(self) -> int:
-        return sum(s.price_cents * s.count for s in self.services)
+        price_total = 0
+        for s in self.services:
+            if s.price_cents is None:
+                raise ValueError('Cannot calculate price total, if price_cents is None')
+            price_total += s.price_cents * s.count
+        return price_total
 
     def get_output_path(self, extension: str) -> Path:
         if self.invoice_date is None:
@@ -198,6 +205,7 @@ def insert_services(invoice_data: InvoiceData):
         service_index += 1
         service.count = ask_count()
         fill_description(service)
+        fill_price(service)
         services.append(service)
     invoice_data.services = services
 
@@ -232,6 +240,11 @@ def fill_description(service: ServiceData):
         print(f'Description is malformed:\n{service.description}')
         return
     service.description = service.description.format(*values)
+
+
+def fill_price(service: ServiceData):
+    if service.price_cents is None:
+        service.price_cents = ask_price(True)
 
 
 def ask_next_service() -> ServiceData | None:
@@ -273,12 +286,8 @@ def create_new_service() -> ServiceData:
     description = input('> ')
     print('Type the price:')
     print('Examples: 1.000,00€   25,50€   0,99€   1.234.567,89€')
-    while True:
-        try:
-            price_cents = parse_price(input('> '))
-            break
-        except ValueError:
-            print('Invalid price, try again:')
+    print('Type nothing for a variable price')
+    price_cents = ask_price()
     data = ServiceData(-1, description=description, count=-1, price_cents=price_cents)
 
     # save data
@@ -288,3 +297,14 @@ def create_new_service() -> ServiceData:
             'price_cents': price_cents
         }, f)
     return data
+
+
+def ask_price(force_value: bool = False) -> int | None:
+    while True:
+        try:
+            price_input = input('> ')
+            if price_input == '' and not force_value:
+                return None
+            return parse_price(price_input)
+        except ValueError:
+            print('Invalid price, try again:')
