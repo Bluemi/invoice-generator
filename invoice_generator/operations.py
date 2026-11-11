@@ -1,4 +1,5 @@
 import datetime
+import re
 import string
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -153,8 +154,22 @@ def insert_recipient_data(invoice_data: InvoiceData):
     invoice_data.recp_customer_nr = data['customer_nr']
 
 
+def normalize_invoice_number(invoice_number: str, invoice_date: datetime.date) -> str:
+    cleaned = invoice_number.strip()
+
+    # If already in the format NNNN/YYYY, return as-is
+    if re.fullmatch(r"\d{4}/\d{4}", cleaned):
+        return cleaned
+
+    # Extract digits and format as 4-digit zero-padded number + /YYYY
+    if cleaned.isdigit():
+        return f"{int(cleaned):04d}/{invoice_date.year}"
+
+    raise ValueError(f"Invalid invoice number format: {invoice_number}")
+
+
 def insert_invoice_data(invoice_data: InvoiceData):
-    invoice_data.invoice_nr = input('Enter invoice number: ')
+    invoice_nr = input('Enter invoice number: ')
     today = datetime.date.today()
     invoice_data.invoice_date = ask_user(
         'Enter invoice date', list_dates(today, 1, 1), include_cancel=True, str_convert=format_date,
@@ -168,6 +183,8 @@ def insert_invoice_data(invoice_data: InvoiceData):
         'Enter service end date', list_dates(invoice_data.service_start_date or today, 0, 2),
         include_cancel=True, str_convert=format_date, other_convert=parse_date
     )
+    assert invoice_data.invoice_date is not None
+    invoice_data.invoice_nr = normalize_invoice_number(invoice_nr, invoice_data.invoice_date)
 
 
 def insert_services(invoice_data: InvoiceData):
